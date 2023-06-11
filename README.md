@@ -3,12 +3,8 @@ Authenticationを使ってアカウント登録必要なチャットアプリ
 
 ## DEMO
 
-  - Firebase Hostingでのデプロイをしようとしたが、下記のエラーが出てきたので諦めました。
-　　Authenticationを入れると課金が必要になるのでしょうか？
-  
-Error: Your project kizuna-chat-caccf must be on the Blaze (pay-as-you-go) plan to complete this command. Required API compute.googleapis.com can't be enabled until the upgrade is complete. To upgrade, visit the following URL:
+https://kizuna-chat-caccf.web.app
 
-https://console.firebase.google.com/project/kizuna-chat-caccf/usage/details
 
 ## 紹介と使い方
 
