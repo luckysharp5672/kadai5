@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>キズナチャット</title>
+</head>
+
+<body>
+
+<!-- アカウント登録フォーム -->
+<div>
+    <input type="email" id="email" placeholder="メールアドレス">
+    <input type="password" id="password" placeholder="パスワード">
+    <input type="username" id="a_username" placeholder="ユーザー名">
+    <button id="signup">アカウント登録</button>
+</div>
+
+<!-- ログインフォーム -->
+<div>
+    <input type="email" id="loginEmail" placeholder="メールアドレス">
+    <input type="password" id="loginPassword" placeholder="パスワード">
+    <button id="login">ログイン</button>
+</div>
+
+<!-- チャット表示画面 -->
+<div>
+
+    <div>
+        名前：<span id="username"></span>
+    </div>
+    <div>
+        <textarea id="text" cols="30" rows="10"></textarea>
+        <button id="send">送信</button>
+    </div>
+    <div id="output" style="overflow: auto;height: 300px;"></div>
+    <div id="chatContainer">
+        <div id="output"></div>
+    </div>
+</div>
+
+<style>
+    #chatContainer {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .chatBubble {
+        /* display: inline-block; */
+        max-width: 80%;
+        padding: 8px 12px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        font-size: 16px;
+    }
+
+    .chatBubble.right {
+        background-color: #dcf8c6;
+        /* align-self: flex-end; */
+        text-align: right;
+    }
+
+    .chatBubble.left {
+        background-color: #f0f0f0;
+        /* align-self: flex-start; */
+        text-align: left;
+    }
+</style>
+
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.1.0/firebase-app.js";
+        import { getDatabase, ref, push, set, onChildAdded, remove, onChildRemoved, get }
+            from "https://www.gstatic.com/firebasejs/9.1.0/firebase-database.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword }
+            from "https://www.gstatic.com/firebasejs/9.1.0/firebase-auth.js";
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            //ここにfirebaseのAPI KEYを入れる
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app); //RealtimeDBに接続
+        const dbRef = ref(db, "chat"); //RealtimeDB内の"chat"を使う
+
+        //Firebase Authenticationの初期化コードを追加
+        const auth = getAuth(app); // Firebase Authenticationに接続
+
+        // アカウント登録処理
+        $("#signup").on("click", function() {
+            const email = $("#email").val();
+            const password = $("#password").val();
+            const a_username = $("#a_username").val(); // ユーザー名を取得
+
+            createUserWithEmailAndPassword(auth, email, password)
+                .then((userCredential) => {
+                    // アカウント登録成功時の処理
+                    const user = userCredential.user;
+                    console.log("ユーザーが登録されました:", user);
+                    // ユーザー名を表示
+                    // $("#username").text(a_username);
+
+                    // ユーザー名をRealtime Databaseに保存
+                    const userRef = ref(db, `users/${user.uid}`); // ユーザーごとにデータを保存するパス
+                    set(userRef, { a_username }); // ユーザー名を保存
+                })
+                .catch((error) => {
+                    // アカウント登録エラー時の処理
+                    const errorCode = error.code;
+                    const errorMessage = error.message;
+                    console.error("ユーザーの登録に失敗しました:", errorCode, errorMessage);
+                });
+        });
+
+        // ログイン処理
+        $("#login").on("click", function() {
+            const email = $("#loginEmail").val();
+            const password = $("#loginPassword").val();
+
+            signInWithEmailAndPassword(auth, email, password)
+                .then((userCredential) => {
+                    const user = userCredential.user;
+                    // ログイン成功時の処理
+                    // ユーザー名を表示
+                    const userRef = ref(db, `users/${user.uid}`); // ユーザーのデータが保存されているパス
+                    get(userRef)
+                        .then((snapshot) => {
+                            const userData = snapshot.val();
+                            $("#username").text(userData.a_username);
+                        })
+                        .catch((error) => {
+                            console.error("ユーザー名の取得に失敗しました:", error);
+                        });
+                })
+                .catch((error) => {
+                    // ログインエラー時の処理
+                    const errorCode = error.code;
+                    const errorMessage = error.message;
+                    console.log(errorCode, errorMessage);
+                });
+        });
+
+        
+        //データ登録(Click)
+        $("#send").on("click",function(){
+            const emailValue = $("#loginEmail").val();
+            const textValue = $("#text").val();
+            const username = $("#username").text(); // ユーザー名を取得
+
+            const msg = {
+                email: emailValue,
+                text: textValue,
+                uname: username
+            };
+            const newPosRef = push(dbRef);
+            set(newPosRef, msg);
+
+            $("#text").val("");
+        });
+
+        //最初にデータ取得＆onChildAddedでリアルタイムにデータを取得
+        onChildAdded(dbRef, function(data){
+            const msg = data.val();
+            const key = data.key;
+
+            let h = '<div class="chatBubble';
+            if (msg.email === $("#loginEmail").val()) {
+                h += ' right">';
+            } else {
+                h += ' left">';
+            }
+            h += '<span class="username">' + msg.uname + '</span><br>';
+            h += '<span class="message">' + msg.text + '</span>';
+            h += `<button class="delete-button" data-key="${key}">X</button>`; // 削除ボタン
+            h += "</div>";
+            
+            $("#output").append(h);
+        });
+
+        // データ削除処理
+        $("#output").on("click", ".delete-button", function() {
+            const key = $(this).data("key");
+            const deleteRef = ref(db, `chat/${key}`);
+            remove(deleteRef)
+                .then(() => {
+                    console.log("データを削除しました:", key);
+                    // 画面上から削除
+                    $(this).parent().remove();
+                })
+                .catch((error) => {
+                    console.error("データの削除に失敗しました:", error);
+                });
+        });
+
+    </script>
+</body>
+
+</html>
